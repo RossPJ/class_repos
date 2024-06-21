@@ -1,0 +1,268 @@
+---
+title: "R Programming Udacity"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-09-03"
+---
+
+patrick ross. 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(RColorBrewer)
+library(tidyverse)
+```
+
+```{r}
+#read in .csv files into data frames
+ny <-read.csv('new-york-city.csv')
+wash <- read.csv('washington.csv')
+chi <- read.csv('chicago.csv')
+```
+
+### Question #1:
+
+**What city has the longest average trip duration?**
+
+```{r}
+#gather variables into vector 
+avg_data <- c(mean(ny$Trip.Duration), mean(chi$Trip.Duration), mean(wash$Trip.Duration))
+
+#city names into vector
+city_names <- c("NYC", "CHI", "WASH")
+
+#sets colors for chart
+bar_color <- brewer.pal(3, "Set2") 
+
+#plots chart 
+barplot(avg_data,
+        col = bar_color,
+        names.arg = city_names,
+        ylab = "Duration in Seconds",
+        main = "Average Trip Duration by City"
+        )
+```
+
+#### Question 1 Analysis:
+
+Mean data was gathered from each city's `Trip.Duration` variable and then plotted. From the data presented, it can be seen that Washington has the longest average trip duration with `r round(avg_data[3], 2)` average seconds. Chicago tops NYC with only `r round(avg_data[2] - avg_data[1], 2)` more seconds. Constraints with the data lie within the outliers. There are quite a few observations that are far outside the normal distribution. Removal of these outliers would be pivotal for more in-depth analysis.
+
+<hr>
+
+### Question #2:
+
+**What is the most popular station in each city?**
+
+```{r}
+#Grab Station columns and bind them into one matrix per city 
+combined_chi <- rbind(chi$Start.Station, chi$End.Station)
+combined_wash <- rbind(wash$Start.Station, wash$End.Station)
+combined_ny <- rbind(ny$Start.Station, ny$End.Station)
+
+```
+
+```{r}
+#Count station occurrences is data set and add to vector 
+top_station_counts <- c(max(table(combined_ny)),
+                        max(table(combined_chi)),
+                        max(table(combined_wash))
+                        )
+```
+
+```{r}
+#Grab the most frequently occurring station name and add to vector
+top_stations_names <-c(names(which.max(table(combined_ny))), 
+                 names(which.max(table(combined_chi))),
+                 names(which.max(table(combined_wash)))
+                 )
+```
+
+```{r}
+#Gets percentage of trips that start or end at a particular station out of total data set length per city 
+ny_pct <- round(top_station_counts[1] / length(combined_ny) * 100, 2)
+chi_pct <- round(top_station_counts[2] / length(combined_chi) * 100, 2)
+wash_pct <- round(top_station_counts[3] / length(combined_wash) * 100, 2)
+```
+
+```{r}
+top_station_chart <- pie(top_station_counts,
+                         main = "Top Station by City",
+                         labels = top_stations_names,
+                         col = bar_color,
+                         #col = rainbow(length(city_names)),
+                         xlab = "Calculated by number of visits"  
+                         )
+
+
+legend("bottomleft",  city_names, cex=1.0, fill=bar_color)
+```
+
+#### Question 2 Analysis:
+
+The most popular stations in each city were explored. If the trip started or ended at a particular station, the value was counted.
+
+-   For NYC, there were **`r top_station_counts[1]`** trips that either started or ended at **`r top_stations_names[1]`** and the percentage of trips that involved **`r top_stations_names[1]`** is **`r ny_pct`**.
+-   For Chicago, there were **`r top_station_counts[2]`** trips that either started or ended at **`r top_stations_names[2]`** and the percentage of trips that involved **`r top_stations_names[2]`** is **`r chi_pct`**.
+-   For Washington, there were **`r top_station_counts[3]`** trips that either started or ended at **`r top_stations_names[3]`** and the percentage of trips that involved **`r top_stations_names[3]`** is **`r wash_pct`**.
+
+<hr>
+
+### Question #3:
+
+**Relative to Chicago and New York City, what does the distribution of age and birth year look like and is there a relation between the two?**
+
+```{r}
+#chi and ny only have gender column 
+#create new data frames with gender and duration values for chi and ny 
+chi_age_dur <- data.frame(chi$Birth.Year, chi$Trip.Duration)
+ny_age_dur <- data.frame(ny$Birth.Year, ny$Trip.Duration)
+```
+
+```{r}
+#shows data frames including null values 
+str(chi_age_dur)
+```
+
+```{r}
+#omit null values for birth year
+chi_age_dur <- data.frame(na.omit(chi_age_dur))
+ny_age_dur <- data.frame(na.omit(ny_age_dur))
+
+```
+
+
+```{r}
+#converts seconds into minutes for both cities in data sets 
+chi_y <- ((chi_age_dur$chi.Trip.Duration) / 60)
+chi_x <- chi_age_dur$chi.Birth.Year
+
+ny_y <- ((ny_age_dur$ny.Trip.Duration) / 60)
+ny_x <- ny_age_dur$ny.Birth.Year
+```
+
+
+
+```{r}
+#scatter plot for Chicago age vs duration
+plot(chi_x, chi_y, main = "Age vs Trip Duration - Chicago",
+     xlab ="Birth Year of Bike Rider",
+     ylab ="Duration of Trip in Minutes",
+     pch = 5,
+     cex = .5,
+     col = "#C59897"
+     )
+#regression line
+abline(lm(chi_y ~ chi_x, data = chi_age_dur), col = "blue")
+```
+
+
+```{r}
+#scatter plot for New York age vs duration
+plot(ny_x, ny_y, main = "Age vs Trip Duration - New York",
+     xlab ="Birth Year of Bike Rider",
+     ylab ="Duration of Trip in Minutes",
+     pch = 5,
+     cex = .5,
+     col = "#91B747"
+     )
+#regression line
+abline(lm(ny_y ~ ny_x, data = ny_age_dur), col = "blue")
+```
+
+
+Remove any trips that exceeded `50000` seconds for a closer look at the distribution between the two variables. Hopefully, this will reduce the over plotting. 
+
+```{r}
+#filters out all values greater than 50000 seconds
+filtered_ny <- filter(ny_age_dur, ny_age_dur$ny.Trip.Duration < 50000)
+filtered_chi <- filter(chi_age_dur, chi_age_dur$chi.Trip.Duration < 50000)
+```
+
+```{r}
+#new variables created
+ny_y1 <- ((filtered_ny$ny.Trip.Duration) / 60)
+ny_x1 <- filtered_ny$ny.Birth.Year
+```
+
+```{r}
+#new variables created
+chi_y1 <- ((filtered_chi$chi.Trip.Duration) / 60)
+chi_x1 <- filtered_chi$chi.Birth.Year
+```
+
+```{r}
+#scatter plot for Chicago age vs duration
+plot(chi_x1, chi_y1, main = "Age vs Trip Duration - Chicago",
+     xlab ="Birth Year of Bike Rider",
+     ylab ="Duration of Trip in Minutes",
+     pch = 5,
+     cex = .5,
+     col = "#C59897"
+     )
+#regression line
+abline(lm(chi_y1 ~ chi_x1, data = filtered_chi), col = "blue")
+```
+
+```{r}
+#scatter plot for New York age vs duration
+plot(ny_x1, ny_y1, main = "Age vs Trip Duration - New York",
+     xlab ="Birth Year of Bike Rider",
+     ylab ="Duration of Trip in Minutes",
+     pch = 2,
+     cex = .5,
+     col = "#91B747"
+     )
+#regression line
+abline(lm(ny_y1 ~ ny_x1, data = filtered_ny), col = "blue")
+```
+```{r}
+#gets mean data for chi and ny variables - used to create histograms and compute statistics in question 3 analysis summary. 
+chi_avg_birth_year <- round(mean(chi_x),0)
+chi_avg_trip_duration <- round(mean(chi_y),0)
+
+ny_avg_birth_year <- round(mean(ny_x),0)
+ny_avg_trip_duration <- round(mean(ny_y),0)
+
+```
+
+
+```{r}
+#creates histogram of chicago birth year variable
+hist(chi_x, main="Chicago Distribution of Bike Rider Birth Year", xlab="Birth Year")
+```
+
+```{r}
+#creates histogram with new york birth year variable 
+hist(ny_x, main="New York Distribution of Bike Rider Birth Year", xlab="Birth Year")
+```
+
+
+
+#### Question 3 Analysis:  
+
+`Birth.Year` and `Trip.Duration` are the two variables were explored in question of 3 of this analysis. Both of these variables are common to `New York City` and `Chicago` data sets.  In the first set of graphs, the visual distribution indicates that there is no readily apparent relation between `Birth.Year` or `Trip.Duration`. The data is mostly congregated near the `x` axis with outliers weighing heavily on the validity of the data. However, it can be seen that the majority of riders were born between 1960 and 2000 and very few rides lasted more than a few hours. 
+
+Specifically, the average bike rider in Chicago was born in **`r chi_avg_birth_year`** and rode for an average of **`r chi_avg_trip_duration`** minutes. New York City was very similar. The average birth year of a New York rider was **`r ny_avg_birth_year`** and the average trip duration was **`r ny_avg_trip_duration`** minutes. 
+
+It was decided to remove any trip that lasted more than `50000` seconds to see if a relationship would emerge. No such relationships were noticed - only a meandering null relationship. One particular constraint of this analysis is the size of the sample. All data points are heavily over plotted near the `x` axis. To alleviate this condition, it would be wise to take a smaller sample of the data. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
